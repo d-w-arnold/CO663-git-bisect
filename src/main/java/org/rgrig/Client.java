@@ -6,14 +6,11 @@ import org.json.JSONArray;
 import org.json.JSONObject;
 
 import java.net.URI;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 class Client extends WebSocketClient
 {
-    State state = State.START;
+    State state;
     Map<String, List<String>> parents;
     String[] commits;
     Map<String, Boolean> good;
@@ -24,6 +21,7 @@ class Client extends WebSocketClient
     {
         super(server);
         this.kentId = kentId;
+        state = State.START;
     }
 
     @Override
@@ -34,8 +32,6 @@ class Client extends WebSocketClient
         switch (state) {
             case START:
                 if (message.has("Problem")) {
-                    // Make an array with all commits, and prepare to remember if they are good or
-                    // bad. Also, remember the problem dag.
                     JSONObject jsonProblem = message.getJSONObject("Problem");
                     JSONArray jsonDag = jsonProblem.getJSONArray("dag");
                     commits = new String[jsonDag.length()];
@@ -106,6 +102,7 @@ class Client extends WebSocketClient
     public void onError(final Exception arg0)
     {
         System.out.printf("L: onError(%s)\n", arg0);
+        arg0.printStackTrace();
     }
 
     @Override

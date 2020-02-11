@@ -30,18 +30,20 @@ class Client extends WebSocketClient
     int parentsSize;
     int batch;
     String kentId;
+    int problemCount;
 
     Client(final URI server, final String kentId)
     {
         super(server);
         this.kentId = kentId;
+        problemCount = 1;
     }
 
     @Override
     public void onMessage(final String messageText)
     {
         final JSONObject message = new JSONObject(messageText);
-        System.out.println("received");
+        problemCount++;
         switch (state) {
             case START:
                 if (message.has("Problem")) {
@@ -49,6 +51,7 @@ class Client extends WebSocketClient
                     goodCommit = jsonProblem.get("good").toString();
                     badCommit = jsonProblem.get("bad").toString();
                     JSONArray jsonDag = jsonProblem.getJSONArray("dag");
+                    System.out.println("(" + problemCount + ") Received problem : " + jsonDag.length() + " commits");
                     if (jsonDag.length() == 2) {
                         send(new JSONObject().put("Solution", badCommit).toString());
                     }
@@ -64,8 +67,8 @@ class Client extends WebSocketClient
                     genCommitsAndParentsMap(jsonDag);
                     trimTheFat();
                     parentsSize = parents.size();
-                    threshold = 1000;
-                    batch = 10;
+                    threshold = 10000;
+                    batch = 100;
                     interval = parentsSize / batch;
                     genBreadthAndRanking();
                     state = State.IN_PROGRESS;
@@ -154,7 +157,7 @@ class Client extends WebSocketClient
             if (!parent.equals(goodCommit) && parents.containsKey(parent)) {
                 if (!visitedInBreathFirst.contains(parent)) {
                     queue.add(parent);
-                    if (count % interval == 0) {
+                    if (count % interval == 1) {
                         breadthFirst.add(parent);
                     }
                     visitedInBreathFirst.add(parent);
@@ -170,9 +173,7 @@ class Client extends WebSocketClient
         queue = new ArrayList<>();
         visitedInBreathFirst = new HashSet<>();
         count = 1;
-        if (count % interval == 0) {
-            breadthFirst.add(commit);
-        }
+        breadthFirst.add(commit);
         visitedInBreathFirst.add(commit);
         count++;
         genBreadthFirstStackAtIntervalHelper(commit);

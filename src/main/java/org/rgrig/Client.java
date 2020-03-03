@@ -30,31 +30,47 @@ class Client extends WebSocketClient
     int parentsSize;
     int batch;
     String kentId;
-    int problemCount;
+    String token;
+    String repoName;
+    int instanceCount;
+    int total;
+    JSONArray jsonDag;
+    JSONArray jsonDagOriginal;
 
-    Client(final URI server, final String kentId)
+    Client(final URI server, final String kentId, final String token)
     {
         super(server);
         this.kentId = kentId;
-        problemCount = 1;
+        this.token = token;
+        repoName = null;
+        instanceCount = 0;
+        total = 0;
+        jsonDag = null;
+        jsonDagOriginal = null;
     }
 
     @Override
     public void onMessage(final String messageText)
     {
         final JSONObject message = new JSONObject(messageText);
-        problemCount++;
         switch (state) {
             case START:
-                if (message.has("Problem")) {
-                    JSONObject jsonProblem = message.getJSONObject("Problem");
-                    goodCommit = jsonProblem.get("good").toString();
-                    badCommit = jsonProblem.get("bad").toString();
-                    JSONArray jsonDag = jsonProblem.getJSONArray("dag");
-                    System.out.println("(" + problemCount + ") Received problem : " + jsonDag.length() + " commits");
-                    if (jsonDag.length() == 2) {
-                        send(new JSONObject().put("Solution", badCommit).toString());
+                if (message.has("Repo")) {
+                    JSONObject jsonRepo = message.getJSONObject("Repo");
+                    repoName = jsonRepo.getString("name");
+                    instanceCount = jsonRepo.getInt("instance_count");
+                    jsonDagOriginal = jsonRepo.getJSONArray("dag");
+                } else if (message.has("Instance")) {
+                    if (repoName == null) {
+                        System.err.println("Protocol error: instance without having seen a repo.");
+                        close();
                     }
+                    jsonDag = jsonDagOriginal;
+                    genCommitsAndParentsMap(jsonDag);
+                    JSONObject jsonInstance = message.getJSONObject("Instance");
+                    goodCommit = jsonInstance.getString("good");
+                    badCommit = jsonInstance.getString("bad");
+                    System.out.printf("Solving instance (good %s; bad %s) of %s\n", goodCommit, badCommit, repoName);
                     latestAskedCommit = null;
                     answeredCommits = new HashMap<>()
                     {{
@@ -64,7 +80,6 @@ class Client extends WebSocketClient
                     mostLikelySolution = badCommit;
                     commitToAsk = null;
                     foundCommitToAsk = false;
-                    genCommitsAndParentsMap(jsonDag);
                     trimTheFat();
                     parentsSize = parents.size();
                     threshold = 10000;
@@ -72,11 +87,16 @@ class Client extends WebSocketClient
                     interval = parentsSize / batch;
                     genBreadthAndRanking();
                     state = State.IN_PROGRESS;
-                    if (foundCommitToAsk) {
-                        foundCommitToAsk = false;
-                        ask(commitToAsk);
+                    if (rankings.isEmpty()) {
+                        state = State.START;
+                        send(new JSONObject().put("Solution", mostLikelySolution).toString());
                     } else {
-                        ask(commitToQuestion());
+                        if (foundCommitToAsk) {
+                            foundCommitToAsk = false;
+                            ask(commitToAsk);
+                        } else {
+                            ask(commitToQuestion());
+                        }
                     }
                 } else if (message.has("Score")) {
                     close();
@@ -333,12 +353,15 @@ class Client extends WebSocketClient
     public void onError(final Exception arg0)
     {
         System.out.printf("L: onError(%s)\n", arg0);
+        arg0.printStackTrace();
     }
 
     @Override
     public void onOpen(final ServerHandshake hs)
     {
-        send(new JSONObject().put("User", kentId).toString());
+        JSONArray authorization = new JSONArray(new Object[]{kentId, token});
+        send(new JSONObject().put("User", authorization).toString());
+        setConnectionLostTimeout(0);
     }
 
     enum State

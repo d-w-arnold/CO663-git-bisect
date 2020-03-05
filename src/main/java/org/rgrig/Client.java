@@ -87,17 +87,7 @@ class Client extends WebSocketClient
                     interval = parentsSize / batch;
                     genBreadthAndRanking();
                     state = State.IN_PROGRESS;
-                    if (rankings.isEmpty()) {
-                        state = State.START;
-                        send(new JSONObject().put("Solution", mostLikelySolution).toString());
-                    } else {
-                        if (foundCommitToAsk) {
-                            foundCommitToAsk = false;
-                            ask(commitToAsk);
-                        } else {
-                            ask(commitToQuestion());
-                        }
-                    }
+                    questionOrSolution();
                 } else if (message.has("Score")) {
                     close();
                 } else {
@@ -112,17 +102,7 @@ class Client extends WebSocketClient
                     } else if (message.get("Answer").equals("Bad")) {
                         answerBad();
                     }
-                    if (rankings.isEmpty()) {
-                        state = State.START;
-                        send(new JSONObject().put("Solution", mostLikelySolution).toString());
-                    } else {
-                        if (foundCommitToAsk) {
-                            foundCommitToAsk = false;
-                            ask(commitToAsk);
-                        } else {
-                            ask(commitToQuestion());
-                        }
-                    }
+                    questionOrSolution();
                 } else {
                     System.err.println("Unexpected message while in-progress.");
                     close();
@@ -273,6 +253,22 @@ class Client extends WebSocketClient
             genRankingsHelper(finalBreadthFirst.get(i));
             if (foundCommitToAsk) {
                 break;
+            }
+        }
+    }
+
+    // Decide whether to ask a question or send a solution
+    private void questionOrSolution()
+    {
+        if (rankings.isEmpty()) {
+            state = State.START;
+            send(new JSONObject().put("Solution", mostLikelySolution).toString());
+        } else {
+            if (foundCommitToAsk) {
+                foundCommitToAsk = false;
+                ask(commitToAsk);
+            } else {
+                ask(commitToQuestion());
             }
         }
     }

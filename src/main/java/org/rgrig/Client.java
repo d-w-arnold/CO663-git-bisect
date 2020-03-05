@@ -113,7 +113,7 @@ class Client extends WebSocketClient
         }
     }
 
-    // Generate the commits array in order to generate the parents hashmap (key = commit, value = list of parents).
+    // Generate the commits array in order to generate the parents hashmap (key = commit, value = list of parents)
     private void genCommitsAndParentsMap(JSONArray jsonDag)
     {
         parents = new HashMap<>();
@@ -167,6 +167,7 @@ class Client extends WebSocketClient
         }
     }
 
+    // Generate breath first (search) stack
     private void genBreadthFirstStackAtInterval(String commit)
     {
         breadthFirst = new ArrayList<>();
@@ -197,6 +198,7 @@ class Client extends WebSocketClient
         }
     }
 
+    // Generate breath first (search) stack
     private void genBreadthFirstStack(String commit)
     {
         breadthFirst = new ArrayList<>();
@@ -244,6 +246,7 @@ class Client extends WebSocketClient
         }
     }
 
+    // Generate scores for all commits in breadth first stack, which aren't already known to be good/bad
     private void genRankings()
     {
         rankings = new HashMap<>();
@@ -273,6 +276,7 @@ class Client extends WebSocketClient
         }
     }
 
+    // We haven't found optimal commit to ask, so find commit with best score/ranking to question
     private String commitToQuestion()
     {
         int halfway = breadthFirst.size() / 2;
@@ -295,6 +299,7 @@ class Client extends WebSocketClient
         send(new JSONObject().put("Question", commit).toString());
     }
 
+    // Good answer received
     private void answerGood()
     {
         answeredCommits.put(latestAskedCommit, true);
@@ -319,12 +324,13 @@ class Client extends WebSocketClient
         genBreadthAndRanking();
     }
 
+    // Bad answer received
     private void answerBad()
     {
         answeredCommits.put(latestAskedCommit, false);
         badCommit = latestAskedCommit;
         mostLikelySolution = badCommit;
-        // Update parents after a good answer
+        // Update parents after a bad answer
         var badCommitAncestry = new ArrayList<>(ancestors.get(badCommit))
         {{
             add(badCommit);

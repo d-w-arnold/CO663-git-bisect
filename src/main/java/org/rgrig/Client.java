@@ -35,7 +35,7 @@ class Client extends WebSocketClient
     int instanceCount;
     int total;
     JSONArray jsonDag;
-    JSONArray jsonDagOriginal;
+    Map<String, Set<String>> parentsOriginal;
 
     Client(final URI server, final String kentId, final String token)
     {
@@ -46,7 +46,7 @@ class Client extends WebSocketClient
         instanceCount = 0;
         total = 0;
         jsonDag = null;
-        jsonDagOriginal = null;
+        parentsOriginal = null;
     }
 
     @Override
@@ -59,14 +59,14 @@ class Client extends WebSocketClient
                     JSONObject jsonRepo = message.getJSONObject("Repo");
                     repoName = jsonRepo.getString("name");
                     instanceCount = jsonRepo.getInt("instance_count");
-                    jsonDagOriginal = jsonRepo.getJSONArray("dag");
+                    jsonDag = jsonRepo.getJSONArray("dag");
+                    genCommitsAndParentsMap(jsonDag);
                 } else if (message.has("Instance")) {
                     if (repoName == null) {
                         System.err.println("Protocol error: instance without having seen a repo.");
                         close();
                     }
-                    jsonDag = jsonDagOriginal;
-                    genCommitsAndParentsMap(jsonDag);
+                    parents = parentsOriginal;
                     JSONObject jsonInstance = message.getJSONObject("Instance");
                     goodCommit = jsonInstance.getString("good");
                     badCommit = jsonInstance.getString("bad");
@@ -116,7 +116,7 @@ class Client extends WebSocketClient
     // Generate the commits array in order to generate the parents hashmap (key = commit, value = list of parents)
     private void genCommitsAndParentsMap(JSONArray jsonDag)
     {
-        parents = new HashMap<>();
+        parentsOriginal = new HashMap<>();
         for (int i = 0; i < jsonDag.length(); ++i) {
             JSONArray entry = jsonDag.getJSONArray(i);
             JSONArray iParents = entry.getJSONArray(1);
@@ -124,7 +124,7 @@ class Client extends WebSocketClient
             for (int j = 0; j < iParents.length(); ++j) {
                 ps.add(iParents.getString(j));
             }
-            parents.put(entry.getString(0), ps);
+            parentsOriginal.put(entry.getString(0), ps);
         }
     }
 

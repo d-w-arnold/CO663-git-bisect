@@ -33,9 +33,10 @@ class Client extends WebSocketClient
     String token;
     String repoName;
     int instanceCount;
-    int total;
     JSONArray jsonDag;
     Map<String, Set<String>> parentsOriginal;
+    int instanceCounter;
+    int totalQuestionCounter;
 
     Client(final URI server, final String kentId, final String token)
     {
@@ -44,9 +45,10 @@ class Client extends WebSocketClient
         this.token = token;
         repoName = null;
         instanceCount = 0;
-        total = 0;
         jsonDag = null;
         parentsOriginal = null;
+        instanceCounter = 0;
+        totalQuestionCounter = 0;
     }
 
     @Override
@@ -61,16 +63,18 @@ class Client extends WebSocketClient
                     instanceCount = jsonRepo.getInt("instance_count");
                     jsonDag = jsonRepo.getJSONArray("dag");
                     genCommitsAndParentsMap(jsonDag);
+                    instanceCounter = 0;
                 } else if (message.has("Instance")) {
                     if (repoName == null) {
                         System.err.println("Protocol error: instance without having seen a repo.");
                         close();
                     }
+                    instanceCounter++;
                     parents = parentsOriginal;
                     JSONObject jsonInstance = message.getJSONObject("Instance");
                     goodCommit = jsonInstance.getString("good");
                     badCommit = jsonInstance.getString("bad");
-                    System.out.printf("Solving instance (good %s; bad %s) of %s\n", goodCommit, badCommit, repoName);
+                    System.out.printf("Solving instance (good %s; bad %s) of %s (%d) (Total Questions Asked: %d)\n", goodCommit, badCommit, repoName, instanceCounter, totalQuestionCounter);
                     latestAskedCommit = null;
                     answeredCommits = new HashMap<>()
                     {{
@@ -296,6 +300,7 @@ class Client extends WebSocketClient
     private void ask(String commit)
     {
         latestAskedCommit = commit;
+        totalQuestionCounter++;
         send(new JSONObject().put("Question", commit).toString());
     }
 

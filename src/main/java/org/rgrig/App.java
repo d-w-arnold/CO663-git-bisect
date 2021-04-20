@@ -14,5 +14,6 @@ public class App
         // Test Server (View Scores: http://129.12.44.229/)
         WebSocketClient client = new Client(new URI("ws://129.12.44.229:1234"), "dwa4", "597feceb");
         client.connect();
+        // TODO: Add local test harness
     }
 }
